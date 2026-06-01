@@ -1,6 +1,5 @@
 package com.grupo10.chatbot_service.service;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.core.ParameterizedTypeReference;
+import com.grupo10.chatbot_service.constant.Constants;
 
 import jakarta.annotation.PostConstruct;
 
@@ -86,13 +86,24 @@ public class GroqService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
 
+        Map<String, String> mensajeSistema = new HashMap<>();
+        mensajeSistema.put("role", "system");
+        mensajeSistema.put(Constants.CONTENT_KEY, "Eres un asistente médico virtual. Tus reglas estrictas son: "
+                + "1. Debes responder SIEMPRE en español. "
+                + "2. Solo tienes permitido responder preguntas relacionadas con la salud, medicina o bienestar. "
+                + "3. Si el usuario te hace una pregunta que no es de carácter médico, debes decirle amablemente que tu función es estrictamente médica y no puedes responder a su consulta.");
         Map<String, String> mensaje = new HashMap<>();
         mensaje.put("role", "user");
-        mensaje.put("content", mensajeUsuario);
+        mensaje.put(Constants.CONTENT_KEY, mensajeUsuario);
 
+        List<Map<String, String>> listaMensajes = new java.util.ArrayList<>();
+        listaMensajes.add(mensajeSistema);
+        listaMensajes.add(mensaje);
+
+        // 4. Construir el body
         Map<String, Object> body = new HashMap<>();
         body.put("model", model);
-        body.put("messages", Collections.singletonList(mensaje));
+        body.put("messages", listaMensajes);
 
         return new HttpEntity<>(body, headers);
     }
@@ -105,7 +116,7 @@ public class GroqService {
         List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
         Map<String, Object> firstChoice = choices.get(0);
         Map<String, String> message = (Map<String, String>) firstChoice.get("message");
-        return message.get("content");
+        return message.get(Constants.CONTENT_KEY);
     }
 
     private boolean esperarRateLimit(HttpClientErrorException.TooManyRequests e, int intento) {
