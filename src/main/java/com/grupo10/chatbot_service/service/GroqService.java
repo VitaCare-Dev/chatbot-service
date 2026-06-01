@@ -86,8 +86,6 @@ public class GroqService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
 
-        logger.debug("Authorization header: Bearer {}...", apiKey.substring(0, Math.min(15, apiKey.length())));
-
         Map<String, String> mensaje = new HashMap<>();
         mensaje.put("role", "user");
         mensaje.put("content", mensajeUsuario);
