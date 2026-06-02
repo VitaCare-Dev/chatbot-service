@@ -113,10 +113,31 @@ public class GroqService {
         if (responseBody == null || !responseBody.containsKey("choices")) {
             return "No se pudo extraer la respuesta.";
         }
+
         List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
         Map<String, Object> firstChoice = choices.get(0);
         Map<String, String> message = (Map<String, String>) firstChoice.get("message");
-        return message.get(Constants.CONTENT_KEY);
+
+        // Obtenemos el texto principal
+        String contenido = message.get(Constants.CONTENT_KEY);
+
+        // Verificamos si la respuesta incluye la información de uso de tokens
+        if (responseBody.containsKey("usage")) {
+            Map<String, Object> usage = (Map<String, Object>) responseBody.get("usage");
+
+            // Usamos String.valueOf para evitar problemas de casteo (Integer vs Double)
+            String promptTokens = String.valueOf(usage.get("prompt_tokens"));
+            String completionTokens = String.valueOf(usage.get("completion_tokens"));
+            String totalTokens = String.valueOf(usage.get("total_tokens"));
+
+            // Concatenamos la información al final del mensaje
+            contenido += "\n\n--- Información de uso ---\n"
+                    + "Tokens de entrada: " + promptTokens + "\n"
+                    + "Tokens de salida: " + completionTokens + "\n"
+                    + "Total de tokens: " + totalTokens;
+        }
+
+        return contenido;
     }
 
     private boolean esperarRateLimit(HttpClientErrorException.TooManyRequests e, int intento) {
