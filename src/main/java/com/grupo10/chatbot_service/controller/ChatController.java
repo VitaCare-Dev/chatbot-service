@@ -20,12 +20,21 @@ public class ChatController {
 
     @PostMapping("/enviar")
     public ResponseEntity<ChatResponse> procesarMensaje(@RequestBody ChatRequest request) {
-        String respuestaIA = groqService.consultarIA(request.getMensaje());
+        String respuestaIA = groqService.consultarIA(request.getIdUsuario(), request.getMensaje());
         return ResponseEntity.ok(new ChatResponse(respuestaIA));
     }
 
     static class ChatRequest {
+        private Integer idUsuario;
         private String mensaje;
+
+        public Integer getIdUsuario() {
+            return idUsuario;
+        }
+
+        public void setIdUsuario(Integer idUsuario) {
+            this.idUsuario = idUsuario;
+        }
 
         public String getMensaje() {
             return mensaje;
