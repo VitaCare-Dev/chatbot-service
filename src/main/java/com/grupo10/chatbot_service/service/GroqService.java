@@ -89,10 +89,7 @@ public class GroqService {
                 return textoConTokens;
 
             } catch (HttpClientErrorException.TooManyRequests e) {
-                if (intento == MAX_RETRIES) {
-                    return "El servicio de IA está temporalmente saturado. Intenta de nuevo más tarde.";
-                }
-                if (!esperarRateLimit(e, intento)) {
+                if (intento < MAX_RETRIES && !esperarRateLimit(e, intento)) {
                     return "La solicitud fue interrumpida.";
                 }
             } catch (Exception e) {
@@ -101,7 +98,7 @@ public class GroqService {
             }
         }
 
-        return "No se pudo obtener respuesta tras varios intentos.";
+        return "El servicio de IA está temporalmente saturado. Intenta de nuevo más tarde.";
     }
 
     private HttpEntity<Map<String, Object>> buildRequest(String mensajeUsuario) {
