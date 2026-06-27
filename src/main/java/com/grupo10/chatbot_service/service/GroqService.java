@@ -25,6 +25,16 @@ import com.grupo10.chatbot_service.repository.ConversacionChatBotRepository;
 
 import jakarta.annotation.PostConstruct;
 
+/**
+ * Servicio de integración con la API de Groq para el chatbot médico.
+ *
+ * <p>Gestiona el ciclo completo de una consulta: construye la petición HTTP,
+ * la envía al modelo de IA, extrae la respuesta, persiste el historial en base
+ * de datos y aplica reintentos automáticos ante límites de tasa (HTTP 429).</p>
+ *
+ * <p>El servicio actúa como asistente médico virtual y rechaza consultas fuera
+ * del ámbito de la salud mediante el prompt de sistema configurado.</p>
+ */
 @Service
 public class GroqService {
 
@@ -36,17 +46,30 @@ public class GroqService {
     @Value("${groq.model}")
     private String model;
 
+    /** Número máximo de reintentos ante errores de rate limit de la API. */
     private static final int MAX_RETRIES = 3;
 
     private final RestTemplate restTemplate;
 
     private final ConversacionChatBotRepository conversacionRepository;
 
+    /**
+     * Crea el servicio inyectando el repositorio de conversaciones.
+     *
+     * @param conversacionRepository repositorio JPA para persistir el historial de chat
+     */
     public GroqService(ConversacionChatBotRepository conversacionRepository) {
         this.restTemplate = new RestTemplate();
         this.conversacionRepository = conversacionRepository;
     }
 
+    /**
+     * Limpia y registra en log los valores de configuración de la API al arranque.
+     *
+     * <p>Se ejecuta automáticamente tras la inyección de dependencias gracias a
+     * {@code @PostConstruct}. Solo muestra los primeros 10 caracteres de la API key
+     * para evitar exponer credenciales en los logs.</p>
+     */
     @PostConstruct
     public void init() {
         if (apiKey != null) {
@@ -61,6 +84,18 @@ public class GroqService {
         logger.info("=========================");
     }
 
+    /**
+     * Envía el mensaje del usuario a la API de Groq y devuelve la respuesta de la IA.
+     *
+     * <p>En caso de recibir un error HTTP 429 (rate limit), reintenta hasta
+     * {@value #MAX_RETRIES} veces respetando el tiempo indicado en la cabecera
+     * {@code Retry-After}. Persiste cada interacción exitosa en la base de datos.</p>
+     *
+     * @param idUsuario     identificador del usuario que realiza la consulta
+     * @param mensajeUsuario texto del mensaje enviado por el usuario
+     * @return texto de respuesta de la IA con información de tokens de uso,
+     *         o un mensaje de error descriptivo si la consulta falla
+     */
     public String consultarIA(Integer idUsuario, String mensajeUsuario) {
         String url = "https://api.groq.com/openai/v1/chat/completions";
         HttpEntity<Map<String, Object>> requestEntity = buildRequest(mensajeUsuario);
@@ -101,6 +136,15 @@ public class GroqService {
         return "El servicio de IA está temporalmente saturado. Intenta de nuevo más tarde.";
     }
 
+    /**
+     * Construye la entidad HTTP con cabeceras y cuerpo para la petición a la API de Groq.
+     *
+     * <p>Incluye el prompt de sistema que restringe al asistente al ámbito médico
+     * y el mensaje del usuario como rol {@code "user"}.</p>
+     *
+     * @param mensajeUsuario texto del mensaje enviado por el usuario
+     * @return entidad HTTP lista para enviarse mediante {@link RestTemplate}
+     */
     private HttpEntity<Map<String, Object>> buildRequest(String mensajeUsuario) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -128,6 +172,17 @@ public class GroqService {
         return new HttpEntity<>(body, headers);
     }
 
+    /**
+     * Extrae y estructura el contenido relevante del cuerpo de respuesta de la API.
+     *
+     * <p>Recupera el texto generado por la IA desde {@code choices[0].message.content}
+     * y, si está disponible, agrega al texto un resumen del uso de tokens
+     * ({@code prompt_tokens}, {@code completion_tokens}, {@code total_tokens}).</p>
+     *
+     * @param responseBody mapa con la respuesta JSON deserializada de la API de Groq
+     * @return mapa con las claves {@code textoLimpio}, {@code textoConTokens} y {@code totalTokens};
+     *         en caso de respuesta nula o malformada devuelve valores por defecto
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> extraerContenidoEstructurado(Map<?, ?> responseBody) {
         Map<String, Object> resultado = new HashMap<>();
@@ -169,6 +224,17 @@ public class GroqService {
         return resultado;
     }
 
+    /**
+     * Pausa la ejecución del hilo el tiempo indicado por la API ante un error de rate limit.
+     *
+     * <p>Lee la cabecera {@code Retry-After} de la respuesta HTTP para determinar
+     * cuántos segundos esperar. Si la cabecera no está presente, usa 10 segundos por defecto.</p>
+     *
+     * @param e       excepción HTTP 429 recibida de la API
+     * @param intento número de intento actual (para logging)
+     * @return {@code true} si la espera se completó satisfactoriamente;
+     *         {@code false} si el hilo fue interrumpido durante la espera
+     */
     private boolean esperarRateLimit(HttpClientErrorException.TooManyRequests e, int intento) {
         HttpHeaders responseHeaders = e.getResponseHeaders();
         String retryAfter = (responseHeaders != null) ? responseHeaders.getFirst("Retry-After") : null;

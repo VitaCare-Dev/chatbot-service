@@ -13,28 +13,40 @@ import jakarta.persistence.Id;
 
 
 
+/**
+ * Entidad JPA que representa una conversación registrada con el chatbot médico.
+ *
+ * <p>Mapea la tabla {@code TB_CONVERSACION_CHATBOT} y almacena cada intercambio
+ * entre un usuario y la IA, incluyendo el mensaje, la respuesta y el consumo de tokens.</p>
+ */
 @Data
 @Entity
 @Table(name = "TB_CONVERSACION_CHATBOT")
 public class ConversacionChatBot {
 
+    /** Identificador único del mensaje, generado automáticamente por la base de datos. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID_MENSAJE")
     private int id;
 
+    /** Identificador del usuario que inició la conversación. */
     @Column(name = "ID_USUARIO")
     private int idUsuario;
 
+    /** Fecha y hora exactas en que se registró la conversación. */
     @Column(name = "FECHA_HORA")
     private LocalDateTime fechaHora;
 
+    /** Texto del mensaje enviado por el usuario. */
     @Column(name = "MENSAJE_USUARIO")
     private String mensajeUsuario;
 
+    /** Texto de la respuesta generada por la IA. */
     @Column(name = "RESPUESTA_IA")
     private String respuestaIA;
 
+    /** Número total de tokens consumidos en la interacción con la API. */
     @Column(name = "TOKENS_CONSUMIDOS")
     private int tokensConsumidos;
 }
