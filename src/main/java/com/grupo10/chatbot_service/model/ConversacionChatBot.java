@@ -10,6 +10,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 
 
 
@@ -39,10 +40,12 @@ public class ConversacionChatBot {
     private LocalDateTime fechaHora;
 
     /** Texto del mensaje enviado por el usuario. */
+    @Lob
     @Column(name = "MENSAJE_USUARIO")
     private String mensajeUsuario;
 
     /** Texto de la respuesta generada por la IA. */
+    @Lob
     @Column(name = "RESPUESTA_IA")
     private String respuestaIA;
 
